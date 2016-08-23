@@ -4,13 +4,13 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 require 'paperclip-watermark/version'
 
 Gem::Specification.new do |gem|
-  gem.name          = "paperclip-watermark"
+  gem.name          = "ack-paperclip-watermark"
   gem.version       = PaperclipWatermark::VERSION
-  gem.authors       = ["Vik Ewoods"]
-  gem.email         = ["support@voroninstudio.eu"]
+  gem.authors       = ["Alexander Kiseliev", "Vik Ewoods"]
+  gem.email         = ["dev@redrocks.pro", "support@voroninstudio.eu"]
   gem.description   = %q{Paperclip Watermark processor}
   gem.summary       = %q{Paperclip Watermark processor}
-  gem.homepage      = "http://vikewoods.com/rails/paperclip-watermark"
+  gem.homepage      = "http://github.com/ack43/paperclip-watermark"
 
   gem.files         = `git ls-files`.split($/)
   gem.executables   = gem.files.grep(%r{^bin/}).map{ |f| File.basename(f) }
@@ -19,6 +19,6 @@ Gem::Specification.new do |gem|
   gem.add_dependency "rake"
   gem.add_dependency "rails"
   gem.add_dependency "minitest"
-  gem.add_dependency "minitest-reporters"
+  # gem.add_dependency "minitest-reporters"
   gem.add_dependency "paperclip", ">= 2.3.8"
 end

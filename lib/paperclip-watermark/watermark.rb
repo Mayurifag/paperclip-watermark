@@ -10,7 +10,8 @@
 module Paperclip
   class Watermark < Processor
     # Handles watermarking of images that are uploaded.
-    attr_accessor :current_geometry, :target_geometry, :format, :whiny, :convert_options, :watermark_path, :overlay, :position
+    attr_accessor :current_geometry, :target_geometry, :format, :whiny, :convert_options,
+                  :watermark_path, :position, :overlay, :tile, :watermark_option, :dissolve_option
 
     def initialize file, options = {}, attachment = nil
       super
@@ -25,8 +26,11 @@ module Paperclip
       @whiny            = options[:whiny].nil? ? true : options[:whiny]
       @format           = options[:format]
       @watermark_path   = options[:watermark_path]
-      @position         = options[:position].nil? ? "SouthEast" : options[:position]
-      @overlay          = options[:overlay].nil? ? true : false
+      @position         = options[:watermark_position].nil? ? "Center" : options[:watermark_position]
+      @overlay          = options[:watermark_overlay].nil? ? true : false
+      @tile             = options[:watermark_tile].nil? ? false : options[:watermark_tile]
+      @watermark_option = options[:watermark_option].nil? ? nil : options[:watermark_option]
+      @dissolve_option  = options[:dissolve_option].nil? ? nil : options[:dissolve_option]
       @current_format   = File.extname(@file.path)
       @basename         = File.basename(@file.path, @current_format)
     end
@@ -49,22 +53,33 @@ module Paperclip
       dst = Tempfile.new([@basename, @format].compact.join("."))
       dst.binmode
 
-      command = "convert"
-      params = [fromfile]
-      params += transformation_command
-      params << tofile(dst)
-      begin
-        success = Paperclip.run(command, params.flatten.compact.collect{|e| "'#{e}'"}.join(" "))
-      rescue Paperclip::Errors::CommandNotFoundError
-        raise Paperclip::Errors::CommandNotFoundError, "There was an error resizing and cropping #{@basename}" if @whiny
+      _transformation_command  = transformation_command
+      unless _transformation_command.blank?
+        command = "convert"
+        params = [fromfile]
+        params += transformation_command
+        params << tofile(dst)
+        begin
+          success = Paperclip.run(command, params.flatten.compact.join(" "))
+        rescue Paperclip::Errors::CommandNotFoundError
+          raise Paperclip::Errors::CommandNotFoundError, "There was an error resizing and cropping #{@basename}" if @whiny
+        end
       end
 
       if watermark_path
         command = "composite"
-        params = %W[-gravity #{@position} #{watermark_path} #{tofile(dst)}]
+        params = []
+        params += %W[-dissolve #{dissolve_option}] if dissolve_option
+        params += %W[-watermark #{watermark_option}] if watermark_option
+        if tile
+          params += %W[-tile #{watermark_path} #{tofile(dst)}]
+        else
+          params += %W[-gravity #{@position}]
+          params += %W[#{watermark_path} #{tofile(dst)}]
+        end
         params << tofile(dst)
         begin
-          success = Paperclip.run(command, params.flatten.compact.collect{|e| "'#{e}'"}.join(" "))
+          success = Paperclip.run(command, params.flatten.compact.join(" "))
         rescue Paperclip::Errors::CommandNotFoundError
           raise Paperclip::Errors::CommandNotFoundError, "There was an error processing the watermark for #{@basename}" if @whiny
         end
@@ -84,17 +99,19 @@ module Paperclip
     def transformation_command
       if @target_geometry.present?
         scale, crop = @current_geometry.transformation_to(@target_geometry, crop?)
-        trans = %W[-resize #{scale}]
+        trans = []
+        trans += %W[-resize #{scale}]
         trans += %W[-crop #{crop} +repage] if crop
         trans += [*convert_options] if convert_options?
-        trans
       else
         scale, crop = @current_geometry.transformation_to(@current_geometry, crop?)
-        trans = %W[-resize #{scale}]
+        trans = []
+        trans += %W[-resize #{scale}] if scale
         trans += %W[-crop #{crop} +repage] if crop
         trans += [*convert_options] if convert_options?
-        trans
       end
+      trans
     end
+
   end
 end

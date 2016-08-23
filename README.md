@@ -1,6 +1,7 @@
-# PaperclipWatermark [![Dependency Status](https://gemnasium.com/vikewoods/paperclip-watermark.png)](https://gemnasium.com/vikewoods/paperclip-watermark) [![Build Status](https://travis-ci.org/vikewoods/paperclip-watermark.png)](https://travis-ci.org/vikewoods/paperclip-watermark)
+# AckPaperclipWatermark
 
-Papercli Watermark processor
+Fork of [PaperclipWatermark](https://github.com/vikewoods/paperclip-watermark)
+Paperclip Watermark processor
 
 ## Usage
 
@@ -14,9 +15,9 @@ class Asset < ActiveRecord::Base
 
   # Paperclip image attachments
   has_attached_file :attachment, :processors => [:watermark],
-                    :styles => { 
-                                 :thumb => '150x150>', 
-                                 :original => { :geometry => '800>', :watermark_path => "#{Rails.root}/public/images/logo.png" } 
+                    :styles => {
+                                 :thumb => '150x150>',
+                                 :original => { :geometry => '800>', :watermark_path => "#{Rails.root}/public/images/logo.png" }
                                },
                     :url    => '/assets/attachment/:id/:style/:basename.:extension',
                     :path   => ':rails_root/public/assets/attachment/:id/:style/:basename.:extension',
@@ -28,13 +29,9 @@ end
 
 ## Installation
 
-Add this line to your application's Gemfile:
+Install from github:
 ```ruby
-gem 'paperclip-watermark'
-```
-or install from github:
-```ruby
-gem 'paperclip-watermark', :github => 'vikewoods/paperclip-watermark'
+gem 'ack-paperclip-watermark', :github => 'ack43/paperclip-watermark'
 ```
 
 And then execute:
