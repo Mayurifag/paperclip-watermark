@@ -10,29 +10,34 @@
 module Paperclip
   class Watermark < Processor
     # Handles watermarking of images that are uploaded.
-    attr_accessor :current_geometry, :target_geometry, :format, :whiny, :convert_options,
-                  :watermark_path, :position, :overlay, :tile, :watermark_option, :dissolve_option
+    attr_accessor :current_geometry, :target_geometry,
+                  :format, :whiny, :convert_options,
+                  :watermark_path, :position, :overlay, :tile, :watermark_option, :dissolve_option, :watermark_geometry, :watermark_resize
 
     def initialize file, options = {}, attachment = nil
       super
-      geometry          = options[:geometry]
-      @file             = file
-      if geometry.present?
-        @crop             = geometry[-1,1] == '#'
-      end
-      @target_geometry  = Geometry.parse geometry
-      @current_geometry = Geometry.from_file @file
-      @convert_options  = options[:convert_options]
-      @whiny            = options[:whiny].nil? ? true : options[:whiny]
-      @format           = options[:format]
-      @watermark_path   = options[:watermark_path]
-      @position         = options[:watermark_position].nil? ? "Center" : options[:watermark_position]
-      @overlay          = options[:watermark_overlay].nil? ? true : false
-      @tile             = options[:watermark_tile].nil? ? false : options[:watermark_tile]
-      @watermark_option = options[:watermark_option].nil? ? nil : options[:watermark_option]
-      @dissolve_option  = options[:dissolve_option].nil? ? nil : options[:dissolve_option]
-      @current_format   = File.extname(@file.path)
-      @basename         = File.basename(@file.path, @current_format)
+      geometry            = options[:geometry]
+      @crop               = geometry[-1,1] == '#' if geometry.present?
+
+      @file               = file
+      @target_geometry    = Geometry.parse geometry
+      @current_geometry   = Geometry.from_file @file
+
+      @convert_options    = options[:convert_options]
+      @whiny              = options[:whiny].nil? ? true : options[:whiny]
+      @format             = options[:format]
+
+      @watermark_path     = options[:watermark_path]
+      @position           = options[:watermark_position].nil? ? "Center"  : options[:watermark_position]
+      @overlay            = options[:watermark_overlay].nil?  ? true      : false
+      @tile               = options[:watermark_tile].nil?     ? false     : options[:watermark_tile]
+      @watermark_option   = options[:watermark_option].nil?   ? nil       : options[:watermark_option]
+      @dissolve_option    = options[:dissolve_option].nil?    ? nil       : options[:dissolve_option]
+      @watermark_geometry = options[:watermark_geometry].nil? ? nil       : options[:watermark_geometry]
+      @watermark_resize   = options[:watermark_resize].nil?   ? nil       : options[:watermark_resize]
+
+      @current_format     = File.extname(@file.path)
+      @basename           = File.basename(@file.path, @current_format)
     end
 
     # TODO: extend watermark
@@ -50,34 +55,37 @@ module Paperclip
     # Performs the conversion of the +file+ into a watermark. Returns the Tempfile
     # that contains the new image.
     def make
-      dst = Tempfile.new([@basename, @format].compact.join("."))
-      dst.binmode
-
-      _transformation_command  = transformation_command
-      unless _transformation_command.blank?
-        command = "convert"
-        params = [fromfile]
-        params += transformation_command
-        params << tofile(dst)
-        begin
-          success = Paperclip.run(command, params.flatten.compact.join(" "))
-        rescue Paperclip::Errors::CommandNotFoundError
-          raise Paperclip::Errors::CommandNotFoundError, "There was an error resizing and cropping #{@basename}" if @whiny
-        end
-      end
+      filename = [@basename, @format ? ".#{@format}" : ""].join
+      dst = TempfileFactory.new.generate(filename)
 
       if watermark_path
+        # unless _transformation_command.blank?
+        #   command = "convert"
+        #   params = [fromfile]
+        #   params += transformation_command
+        #   params << tofile(dst)
+        #   begin
+        #     success = Paperclip.run(command, params.flatten.compact.join(" "))
+        #   rescue Paperclip::Errors::CommandNotFoundError
+        #     raise Paperclip::Errors::CommandNotFoundError, "There was an error resizing and cropping #{@basename}" if @whiny
+        #   end
+        # end
+
         command = "composite"
         params = []
+        params += %W[-geometry #{watermark_geometry}] if watermark_geometry
         params += %W[-dissolve #{dissolve_option}] if dissolve_option
         params += %W[-watermark #{watermark_option}] if watermark_option
         if tile
-          params += %W[-tile #{watermark_path} #{tofile(dst)}]
+          params += %W[-tile]
         else
-          params += %W[-gravity #{@position}]
-          params += %W[#{watermark_path} #{tofile(dst)}]
+          params += %W[-gravity #{position}]
         end
-        params << tofile(dst)
+        if watermark_resize
+          params += %W[#{"\\( #{watermark_path} -resize #{watermark_resize} \\)"} #{fromfile} #{tofile(dst)}]
+        else
+          params += %W[#{watermark_path} #{fromfile} #{tofile(dst)}]
+        end
         begin
           success = Paperclip.run(command, params.flatten.compact.join(" "))
         rescue Paperclip::Errors::CommandNotFoundError
